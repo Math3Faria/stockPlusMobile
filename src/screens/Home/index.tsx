@@ -1,48 +1,69 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'
-import { RootStackParamList } from '../../../App';
-
-type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function Home() {
-    const navigation = useNavigation<NavigationProps>();
-    return (
-        <SafeAreaView style={{ flex: 1 }}>
-            <Text> Pagina Home </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Produtos')} style={styles.button}>
-                <Text style={[styles.buttonText, { fontSize: 18 }]}>Produtos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Categorias')} style={styles.button}>
-                <Text style={[styles.buttonText, { fontSize: 18 }]}>Categorias</Text>
-            </TouchableOpacity>
-        </SafeAreaView>
-    );
+  const navigation = useNavigation<any>();
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Menu Principal</Text>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => navigation.navigate('Estoque')}
+      >
+        <Text style={styles.buttonText}>Ir para Estoque</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => navigation.navigate('Fornecedores')}
+      >
+        <Text style={styles.buttonText}>Ir para Fornecedores</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => navigation.navigate('Categorias')}
+      >
+        <Text style={styles.buttonText}>Ir para Categorias</Text>
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    button: {
-        backgroundColor: '#000000',
-        borderRadius: 20,
-        width: '95%',
-        height: 48,
-        alignItems: "center",
-        alignSelf: "center",
-        marginTop: 20,
-    },
-    buttonText: {
-        fontSize: 18,
-        color: "white",
-        textAlignVertical: "center",
-        marginTop: 10
-    }
-
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 40,
+    color: '#333',
+  },
+  button: {
+    width: '100%',
+    height: 60,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  buttonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
 });

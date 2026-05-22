@@ -1,18 +1,17 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
-import { Produto } from "./src/screens/produtos";
 
 import Home from "./src/screens/Home";
-import Produtos from "./src/screens/produtos";
-import Categorias from "./src";
+import Categorias from "./src/screens/Categorias";
+import Estoque from "./src/screens/Estoque";
+import Fornecedores from "./src/screens/Fornecedores";
 
 
 export type RootStackParamList = {
-  Home: undefined,
-  Produtos: undefined,
+  Home: undefined,  
+  Fornecedores: undefined,
   Categorias: undefined,
-  NovoProd: undefined,
-  NovaCat: undefined,
+  Estoque: undefined,
 }
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,13 +24,17 @@ export default function App() {
           component={Home}
           options={{ headerShown: false }}
         />
+          <Stack.Screen
+            name="Categorias"
+            component={Categorias}
+          />
         <Stack.Screen
-          name="Produtos"
-          component={Produtos}
+          name="Estoque"
+          component={Estoque}
         />
-        <Stack.Screen
-          name="Categorias"
-          component={Categorias}
+                <Stack.Screen
+          name="Fornecedores"
+          component={Fornecedores}
         />
       </Stack.Navigator>
     </NavigationContainer>
