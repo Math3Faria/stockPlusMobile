@@ -1,0 +1,299 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, FlatList,
+  TextInput, Modal, Alert, ActivityIndicator,
+  StatusBar, KeyboardAvoidingView, Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../../App';
+import COLORS from '../../themes/colors';
+import { api } from '../../../api/api'; // ✅ mantido igual ao seu import atual
+
+type NavigationProps = NativeStackNavigationProp<RootStackParamList, 'Categorias'>;
+
+interface Categoria {
+  idCategoria: number;  // ✅ bate com SELECT * FROM categorias (campo real do banco)
+  descricao: string;
+  totalProdutos?: number;
+}
+
+export default function Categorias() {
+  const navigation = useNavigation<NavigationProps>();
+
+  const [categorias, setCategorias]     = useState<Categoria[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [saving, setSaving]             = useState(false);
+  const [search, setSearch]             = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editando, setEditando]         = useState<Categoria | null>(null);
+  const [descricao, setDescricao]       = useState('');
+
+  // ─── GET /categorias ────────────────────────────────────────────────────────
+  const fetchCategorias = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get<Categoria[]>('/categorias');
+      setCategorias(data);
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error);
+      Alert.alert('Erro', 'Não foi possível carregar as categorias.');
+      setCategorias([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {                   // ✅ busca ao montar a tela
+    fetchCategorias();
+  }, [fetchCategorias]);
+
+  // ─── Helpers de modal ───────────────────────────────────────────────────────
+  function abrirCadastro() {
+    setEditando(null);
+    setDescricao('');
+    setModalVisible(true);
+  }
+
+  function abrirEdicao(c: Categoria) {
+    setEditando(c);
+    setDescricao(c.descricao);
+    setModalVisible(true);
+  }
+
+  // ─── POST /categorias  |  PUT /categorias/:id ───────────────────────────────
+  async function handleSalvar() {
+    if (!descricao.trim()) {
+      Alert.alert('Atenção', 'Informe a descrição da categoria.');
+      return;
+    }
+    // Validação mínima igual ao backend (≥ 3 chars)
+    if (descricao.trim().length < 3) {
+      Alert.alert('Atenção', 'A descrição deve ter pelo menos 3 caracteres.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (editando) {
+        // PUT /categorias/:id  →  body: { descricao }
+        await api.put(`/categorias/${editando.idCategoria}`, { descricao: descricao.trim() });
+        Alert.alert('Sucesso', 'Categoria atualizada!');
+      } else {
+        // POST /categorias  →  body: { descricao }  →  201 { message, id }
+        await api.post('/categorias', { descricao: descricao.trim() });
+        Alert.alert('Sucesso', 'Categoria cadastrada!');
+      }
+
+      setModalVisible(false);
+      setDescricao('');
+      setEditando(null);
+      await fetchCategorias();
+    } catch (error) {
+      console.error('Erro ao salvar categoria:', error);
+      Alert.alert('Erro', 'Não foi possível salvar a categoria.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ─── DELETE /categorias/:id ─────────────────────────────────────────────────
+  function confirmarExclusao(c: Categoria) {
+    Alert.alert('Excluir', `Deseja excluir "${c.descricao}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Excluir', style: 'destructive', onPress: () => excluir(c.idCategoria) },
+    ]);
+  }
+
+  async function excluir(id: number) {
+    try {
+      await api.delete(`/categorias/${id}`);
+      Alert.alert('Sucesso', 'Categoria excluída!');
+      await fetchCategorias();
+    } catch (error) {
+      console.error('Erro ao excluir categoria:', error);
+      Alert.alert('Erro', 'Não foi possível excluir.');
+    }
+  }
+
+  // ─── Filtro local ────────────────────────────────────────────────────────────
+  const filtrados = categorias.filter(c =>
+    c.descricao.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // ─── Render item ─────────────────────────────────────────────────────────────
+  function renderItem({ item }: { item: Categoria }) {
+    return (
+      <View style={styles.card}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{item.descricao}</Text>
+          {item.totalProdutos !== undefined && (
+            <Text style={styles.cardSub}>{item.totalProdutos} produtos</Text>
+          )}
+        </View>
+        <TouchableOpacity style={styles.btnEdit} onPress={() => abrirEdicao(item)}>
+          <Text style={styles.btnText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.btnDelete} onPress={() => confirmarExclusao(item)}>
+          <Text style={styles.btnText}>Excluir</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // ─── JSX ─────────────────────────────────────────────────────────────────────
+  return (
+    <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.c1} />
+
+      <View style={styles.topbar}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.topbarTitle}>Categorias</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      <View style={styles.body}>
+        <TextInput
+          style={styles.search}
+          placeholder="Buscar categoria..."
+          placeholderTextColor="#aaa"
+          value={search}
+          onChangeText={setSearch}
+        />
+
+        <Text style={styles.count}>{filtrados.length} registros</Text>
+
+        {loading ? (
+          <ActivityIndicator color={COLORS.c3} style={{ marginTop: 32 }} />
+        ) : filtrados.length === 0 ? (
+          <Text style={styles.empty}>Nenhuma categoria encontrada.</Text>
+        ) : (
+          <FlatList
+            data={filtrados}
+            keyExtractor={item => String(item.idCategoria)}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          />
+        )}
+      </View>
+
+      <TouchableOpacity style={styles.fab} onPress={abrirCadastro}>
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.overlay}>
+            <View style={styles.sheet}>
+              <View style={styles.handle} />
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>
+                  {editando ? 'Editar categoria' : 'Nova categoria'}
+                </Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={styles.closeBtn}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.label}>Descrição *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Analgésicos"
+                placeholderTextColor="#aaa"
+                value={descricao}
+                onChangeText={setDescricao}
+              />
+
+              <TouchableOpacity
+                style={styles.submitBtn}
+                onPress={handleSalvar}
+                disabled={saving}
+              >
+                {saving
+                  ? <ActivityIndicator color={COLORS.white} />
+                  : <Text style={styles.submitText}>
+                      {editando ? 'Salvar' : 'Cadastrar'}
+                    </Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: COLORS.c1 },
+  topbar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14, backgroundColor: COLORS.c1,
+  },
+  backIcon:     { color: COLORS.white, fontSize: 24 },
+  topbarTitle:  { color: COLORS.white, fontSize: 17, fontWeight: '600' },
+
+  body:   { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
+  search: {
+    backgroundColor: COLORS.white, borderRadius: 8,
+    borderWidth: 0.5, borderColor: COLORS.c3,
+    paddingHorizontal: 12, paddingVertical: 9,
+    fontSize: 13, color: COLORS.c1, marginBottom: 12,
+  },
+  count: { fontSize: 11, color: COLORS.c3, marginBottom: 10 },
+  empty: { color: '#999', fontSize: 13, textAlign: 'center', marginTop: 40 },
+
+  card: {
+    backgroundColor: COLORS.white, borderRadius: 10,
+    borderWidth: 0.5, borderColor: 'rgba(43,117,116,0.2)',
+    padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8,
+  },
+  cardTitle: { fontSize: 14, fontWeight: '500', color: COLORS.c1 },
+  cardSub:   { fontSize: 12, color: '#888', marginTop: 2 },
+  btnEdit:   { backgroundColor: COLORS.c3, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  btnDelete: { backgroundColor: COLORS.red, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  btnText:   { color: COLORS.white, fontSize: 12, fontWeight: '600' },
+
+  fab: {
+    position: 'absolute', bottom: 24, right: 20,
+    backgroundColor: COLORS.red, width: 52, height: 52,
+    borderRadius: 99, alignItems: 'center', justifyContent: 'center', elevation: 4,
+  },
+  fabText: { color: COLORS.white, fontSize: 28, lineHeight: 32 },
+
+  overlay: { flex: 1, backgroundColor: 'rgba(14,41,49,0.6)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: COLORS.white, borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    padding: 20, paddingTop: 12,
+  },
+  handle: {
+    width: 36, height: 4, backgroundColor: '#ddd',
+    borderRadius: 2, alignSelf: 'center', marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 16,
+  },
+  sheetTitle: { fontSize: 16, fontWeight: '600', color: COLORS.c1 },
+  closeBtn:   { fontSize: 20, color: '#999' },
+  label: { fontSize: 12, color: COLORS.c3, fontWeight: '500', marginBottom: 6 },
+  input: {
+    borderWidth: 0.5, borderColor: 'rgba(43,117,116,0.4)', borderRadius: 8,
+    padding: 10, paddingHorizontal: 12, fontSize: 13, color: COLORS.c1,
+    backgroundColor: COLORS.white, marginBottom: 16,
+  },
+  submitBtn:  { backgroundColor: COLORS.red, borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  submitText: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+});
